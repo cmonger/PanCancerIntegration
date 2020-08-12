@@ -41,10 +41,12 @@ with open(args.tissueSamples) as t:
 patients = [x.strip() for x in patients]
 #print(patients)
 
+#convert these to RNA-Seq aliquot ids and drop empty strings
 patIds=[]
 for pat in patients:
     patIds.append(convert(pat))
-print(patIds)
+patIds = list(filter(None, patIds))
+#print(patIds)
 
 #Read the RNA-Seq file into a pandas df
 rnaDF=pd.read_csv(args.rnaseq)
@@ -53,10 +55,14 @@ def intersection(lst1, lst2):
     lst3 = [value for value in lst1 if value in lst2]
     return lst3
 
+def outersection(lst1,lst2):
+    lst3 = [value for value in lst1 if value not in lst2]
+    return lst3
+
 #Get a list of the patients which have rna-seq data
 allPatients=list(rnaDF.columns)
 #print(allPatients)
-patients=intersection(allPatients, patients)
+patients=intersection(allPatients, patIds)
 patients.insert(0,"feature")
 patients.insert(0,"geneName")
 patients.insert(0,"geneid")
@@ -64,8 +70,11 @@ patients.insert(0,"1")
 #print(patients)
 #subset to just those with affected tissue type
 rnaDF=rnaDF[patients]
-#print(rnaDF.iloc[1:10,"geneName"])
+#print (rnaDF)
 
+
+#print(rnaDF.loc[1:10,"128ec04c-6514-4eb9-aa2e-79da6949b9a8"]) #Doesnt work
+#print(rnaDF.iloc[1:10,"geneName"]) #Doesnt work
 #rnaDF2=rnaDF.iloc[["geneName","feature","01370d42-f75c-4532-9b9c-24ff7302b033"]]
 #print(rnaDF2.head())
 #geneid geneName             feature  01370d42-f75c-4532-9b9c-24ff7302b033
@@ -78,16 +87,28 @@ for line in open(args.input):
     mutation=line.split("\t")[0]
 
     donors=files.split(",")
-   # print(donors)
+    #print(donors)
     RNAids= []
     for donorId in donors:
         RNAids.append(convert(donorId))
     #    print(convert(donorId))
     #print(RNAids)
-    donors=intersection(RNAids, patients)
+    donors=intersection(RNAids, patIds)
+    donors.insert(0,"geneName")
     #print(donors)
     #This line works, and will select the correct cols
     #print(rnaDF.loc[rnaDF["geneName"] == gene,["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
     #print(rnaDF.loc[[rnaDF['geneName'] == gene],["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
-    #print(rnaDF.loc[[rnaDF['geneName'] == gene],[donors]])
+    #print(rnaDF.iloc[[rnaDF['geneName'] == gene],[donors]])
+    
+    if (len(donors) > 1):
+        #Create a dataframe for patients RNA-Seq data with and without the mutation
+        mutatedRNADF=rnaDF[rnaDF.columns[rnaDF.columns.isin(donors)]]
+        nonMutatedIds=outersection(patIds,RNAids)
+        nonMutatedRNADF=rnaDF[rnaDF.columns[rnaDF.columns.isin(nonMutatedIds)]]
+
+        print(mutatedRNADF.loc[rnaDF["geneName"] == gene]) 
+        print (nonMutatedRNADF.loc[rnaDF["geneName"] == gene])
 #Loop through each file and get the quantification of the gene 
+
+
