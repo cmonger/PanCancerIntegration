@@ -5,6 +5,7 @@
 #ids<-read.delim("IdConversion.tsv",header=F)
 #write.csv(cbind(ids,RNASeq), "RNA-Seq.csv")
 # sed 1d RNA-Seq.csv -i
+#./panCancerInt.py --i CosmicBreastReccurentMutationsAnnotated.bed  --o test.tmp --r RNA-Seq.csv --t ../../breast/breastPatientIds.txt --s ../../pcawg_sample_sheet.tsv
 
 import sys
 import argparse
@@ -15,19 +16,35 @@ parser.add_argument("--input",help="Input file (*ReccurentMutationsAnnotated.bed
 parser.add_argument("--output",help="Output file",required=True)
 parser.add_argument("--rnaseq",help="RNA-Seq quant file location",required=True)
 parser.add_argument("--tissueSamples",help="Patients affected by the target cancer type",required=True)
-
+parser.add_argument("--sampleSheet",help="PanCancer sample sheet location",required=True)
 args=parser.parse_args()
 
 f= open(args.output,'w')
 
-#Create a dictionary
-d={}
+
+samples = pd.read_csv(args.sampleSheet,sep="\t")
+#Use the aliquot id to get the donor id
+
+#Function to convert WGS sample IDs to RNA-Seq ids
+def convert(identifier):
+    donorId=samples.loc[samples["aliquot_id"] == identifier,"donor_unique_id"].values[0]
+    donorId2=samples.loc[(samples["library_strategy"] == "RNA-Seq")& (samples["donor_unique_id"] == donorId),"aliquot_id"]
+    if donorId2.empty:
+        return ""
+    donorId2=samples.loc[(samples["library_strategy"] == "RNA-Seq")& (samples["donor_unique_id"] == donorId),"aliquot_id"].values[0]
+    return donorId2
+
 
 #Read list of patients with cancer type
 with open(args.tissueSamples) as t:
     patients = t.readlines()
 patients = [x.strip() for x in patients]
 #print(patients)
+
+patIds=[]
+for pat in patients:
+    patIds.append(convert(pat))
+print(patIds)
 
 #Read the RNA-Seq file into a pandas df
 rnaDF=pd.read_csv(args.rnaseq)
@@ -44,7 +61,7 @@ patients.insert(0,"feature")
 patients.insert(0,"geneName")
 patients.insert(0,"geneid")
 patients.insert(0,"1")
-print(patients)
+#print(patients)
 #subset to just those with affected tissue type
 rnaDF=rnaDF[patients]
 #print(rnaDF.iloc[1:10,"geneName"])
@@ -61,8 +78,14 @@ for line in open(args.input):
     mutation=line.split("\t")[0]
 
     donors=files.split(",")
-    print(donors)
-    donors=intersection(donors, patients)
+   # print(donors)
+    RNAids= []
+    for donorId in donors:
+        RNAids.append(convert(donorId))
+    #    print(convert(donorId))
+    #print(RNAids)
+    donors=intersection(RNAids, patients)
+    #print(donors)
     #This line works, and will select the correct cols
     #print(rnaDF.loc[rnaDF["geneName"] == gene,["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
     #print(rnaDF.loc[[rnaDF['geneName'] == gene],["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
