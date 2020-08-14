@@ -10,6 +10,7 @@
 import sys
 import argparse
 import pandas as pd
+import math
 
 parser = argparse.ArgumentParser(description="Take the file CosmicBreastReccurentMutationsAnnotated.bed and try to find mutations linked to differential expression.")
 parser.add_argument("--input",help="Input file (*ReccurentMutationsAnnotated.bed).",required=True)
@@ -94,21 +95,22 @@ for line in open(args.input):
     #    print(convert(donorId))
     #print(RNAids)
     donors=intersection(RNAids, patIds)
-    donors.insert(0,"geneName")
+    #donors.insert(0,"geneName")
     #print(donors)
     #This line works, and will select the correct cols
     #print(rnaDF.loc[rnaDF["geneName"] == gene,["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
     #print(rnaDF.loc[[rnaDF['geneName'] == gene],["geneid","01370d42-f75c-4532-9b9c-24ff7302b033"]])
     #print(rnaDF.iloc[[rnaDF['geneName'] == gene],[donors]])
     
-    if (len(donors) > 1):
+    if (len(donors) > 0):
         #Create a dataframe for patients RNA-Seq data with and without the mutation
         mutatedRNADF=rnaDF[rnaDF.columns[rnaDF.columns.isin(donors)]]
         nonMutatedIds=outersection(patIds,RNAids)
         nonMutatedRNADF=rnaDF[rnaDF.columns[rnaDF.columns.isin(nonMutatedIds)]]
-
-        print(mutatedRNADF.loc[rnaDF["geneName"] == gene]) 
-        print (nonMutatedRNADF.loc[rnaDF["geneName"] == gene])
-#Loop through each file and get the quantification of the gene 
+        print(mutation)
+        print(donors)
+        print ("FPKM expression of " , gene , "in patients unaffected by mutation", nonMutatedRNADF.loc[rnaDF["geneName"] == gene].sum().mean())
+        print("FPKM expression of" , gene , "in patients with mutation",  mutatedRNADF.loc[rnaDF["geneName"] == gene].sum().mean()) 
+        print ("Log2 FC:" , math.log2(mutatedRNADF.loc[rnaDF["geneName"] == gene].sum().mean()/nonMutatedRNADF.loc[rnaDF["geneName"] == gene].sum().mean()) , "\n")
 
 
